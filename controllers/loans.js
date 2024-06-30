@@ -3,7 +3,27 @@ const pool = require('../config/db');
 // Get all loans
 exports.getAllLoans = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM loans');
+    const result = await pool.query(`
+      SELECT 
+        loans.loanid, 
+        loans.amount, 
+        loans.interestrate, 
+        loans.durationmonths, 
+        loans.startdate, 
+        loans.loantype, 
+        loans.status, 
+        loans.remaining_amount,
+        clients.clientid AS client_id, 
+        clients.firstname AS client_firstname, 
+        clients.lastname AS client_lastname, 
+        clients.email AS client_email, 
+        clients.phone AS client_phone, 
+        clients.address AS client_address, 
+        clients.birthdate AS client_birthdate, 
+        clients.balance AS client_balance
+      FROM loans
+      JOIN clients ON loans.clientid = clients.clientid
+    `);
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -24,10 +44,11 @@ exports.getLoanById = async (req, res) => {
 // Create a new loan
 exports.createLoan = async (req, res) => {
   const { clientid, amount, interestrate, durationmonths, startdate, loantype, status = 'pending' } = req.body;
+  const remainingAmount = amount * 1.15; // Calculate remaining amount as amount + 15% of amount
   try {
     const result = await pool.query(
-      'INSERT INTO loans (clientid, amount, interestrate, durationmonths, startdate, loantype, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [clientid, amount, interestrate, durationmonths, startdate, loantype, status]
+      'INSERT INTO loans (clientid, amount, interestrate, durationmonths, startdate, loantype, status, remaining_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [clientid, amount, interestrate, durationmonths, startdate, loantype, status, remainingAmount]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {

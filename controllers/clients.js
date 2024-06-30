@@ -23,11 +23,11 @@ exports.getClientById = async (req, res) => {
 
 // Create a new client
 exports.createClient = async (req, res) => {
-  const { lastname, firstname, birthdate, address, email, phone } = req.body;
+  const { lastname, firstname, birthdate, address, email, phone, balance } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO clients (lastname, firstname, birthdate, address, email, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [lastname, firstname, birthdate, address, email, phone]
+      'INSERT INTO clients (lastname, firstname, birthdate, address, email, phone, balance) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [lastname, firstname, birthdate, address, email, phone, balance]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -38,11 +38,11 @@ exports.createClient = async (req, res) => {
 // Update a client
 exports.updateClient = async (req, res) => {
   const { id } = req.params;
-  const { lastname, firstname, birthdate, address, email, phone } = req.body;
+  const { lastname, firstname, birthdate, address, email, phone, balance } = req.body;
   try {
     const result = await pool.query(
-      'UPDATE clients SET lastname = $1, firstname = $2, birthdate = $3, address = $4, email = $5, phone = $6 WHERE clientid = $7 RETURNING *',
-      [lastname, firstname, birthdate, address, email, phone, id]
+      'UPDATE clients SET lastname = $1, firstname = $2, birthdate = $3, address = $4, email = $5, phone = $6, balance = $7 WHERE clientid = $8 RETURNING *',
+      [lastname, firstname, birthdate, address, email, phone, balance, id]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -56,6 +56,22 @@ exports.deleteClient = async (req, res) => {
   try {
     await pool.query('DELETE FROM clients WHERE clientid = $1', [id]);
     res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Rechercher des clients par prénom ou nom de famille
+exports.searchClientsByFirstNameOrLastName = async (req, res) => {
+  const { searchText } = req.query;
+  try {
+    const query = `
+      SELECT * FROM clients 
+      WHERE firstname ILIKE $1
+      OR lastname ILIKE $1
+    `;
+    const result = await pool.query(query, [`${searchText}%`]);
+    res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

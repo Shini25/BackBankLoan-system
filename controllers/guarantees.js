@@ -21,6 +21,17 @@ exports.getGuaranteeById = async (req, res) => {
   }
 };
 
+// Get guarantee by loan ID
+exports.getGuaranteeByLoanId = async (req, res) => {
+  const { loanid } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM guarantees WHERE loanid = $1', [loanid]);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Create a new guarantee
 exports.createGuarantee = async (req, res) => {
   const { loanid, guaranteetype, estimatedvalue, description } = req.body;

@@ -60,3 +60,19 @@ exports.deleteEmployee = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Rechercher des employés par prénom ou nom de famille
+exports.searchEmployeesByFirstNameOrLastName = async (req, res) => {
+  const { searchText } = req.query;
+  try {
+    const query = `
+      SELECT * FROM employees 
+      WHERE firstname ILIKE $1
+      OR lastname ILIKE $1
+    `;
+    const result = await pool.query(query, [`${searchText}%`]);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

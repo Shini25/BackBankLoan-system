@@ -23,12 +23,34 @@ exports.getTransactionById = async (req, res) => {
 
 // Create a new transaction
 exports.createTransaction = async (req, res) => {
-  const { clientid, loanid, transactiondate, amount, transactiontype } = req.body;
+  const { loanid, transactiondate, amount, transactiontype } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO transactions (clientid, loanid, transactiondate, amount, transactiontype) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [clientid, loanid, transactiondate, amount, transactiontype]
+      'INSERT INTO transactions (loanid, transactiondate, amount, transactiontype) VALUES ($1, $2, $3, $4) RETURNING *',
+      [loanid, transactiondate, amount, transactiontype]
     );
+
+    if (transactiontype === 'loan') {
+      await pool.query('UPDATE loans SET status = $1 WHERE loanid = $2', ['Approved', loanid]);
+
+      // Get the client ID associated with the loan
+      const loanResult = await pool.query('SELECT clientid FROM loans WHERE loanid = $1', [loanid]);
+      const clientId = loanResult.rows[0].clientid;
+
+      // Update the client's balance
+      await pool.query('UPDATE clients SET balance = balance + $1 WHERE clientid = $2', [amount, clientId]);
+    } else if (transactiontype === 'payment') {
+      // Get the client ID associated with the loan
+      const loanResult = await pool.query('SELECT clientid FROM loans WHERE loanid = $1', [loanid]);
+      const clientId = loanResult.rows[0].clientid;
+
+      // Update the client's balance
+      await pool.query('UPDATE clients SET balance = balance - $1 WHERE clientid = $2', [amount, clientId]);
+
+      // Update the remaining amount of the loan
+      await pool.query('UPDATE loans SET remaining_amount = remaining_amount - $1 WHERE loanid = $2', [amount, loanid]);
+    }
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -41,8 +63,8 @@ exports.updateTransaction = async (req, res) => {
   const { clientid, loanid, transactiondate, amount, transactiontype } = req.body;
   try {
     const result = await pool.query(
-      'UPDATE transactions SET clientid = $1, loanid = $2, transactiondate = $3, amount = $4, transactiontype = $5 WHERE transactionid = $6 RETURNING *',
-      [clientid, loanid, transactiondate, amount, transactiontype, id]
+      'UPDATE transactions SET loanid = $1, transactiondate = $2, amount = $3, transactiontype = $4 WHERE transactionid = $5 RETURNING *',
+      [loanid, transactiondate, amount, transactiontype, id]
     );
     res.json(result.rows[0]);
   } catch (error) {
